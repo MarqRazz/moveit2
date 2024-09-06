@@ -20,13 +20,25 @@ find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(ompl REQUIRED)
+find_package(ompl CONFIG REQUIRED)
+# include(ConfigExtras.cmake)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wno-overloaded-virtual)
 endif()
 
 include_directories(ompl_interface/include)
+# set(OMPL_INCLUDE_DIRS)
+# list(APPEND OMPL_INCLUDE_DIRS "/root/moveit2_ws/src/ompl/src")
+# list(APPEND OMPL_INCLUDE_DIRS "/root/moveit2_ws/build/ompl/src")
+# include_directories(SYSTEM ${Boost_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
+# message("********************************************")
+# foreach(dir ${OMPL_INCLUDE_DIRS})
+#   message("dir='${dir}'")
+# endforeach()
+# message("********************************************")
+
+list(APPEND OMPL_INCLUDE_DIRS "/root/moveit2_ws/install/ompl/include/ompl-1.6")
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
 
 add_subdirectory(ompl_interface)
@@ -45,4 +57,5 @@ ament_export_dependencies(moveit_core ompl)
 pluginlib_export_plugin_description_file(moveit_core
                                          ompl_interface_plugin_description.xml)
 
-ament_package()
+# ament_package()
+ament_package(CONFIG_EXTRAS ConfigExtras.cmake)
