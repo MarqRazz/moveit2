@@ -465,6 +465,7 @@ void PlanningSceneMonitor::scenePublishingThread()
         new_scene_update_condition_.wait(ulock);
       if (new_scene_update_ != UPDATE_NONE)
       {
+        // RCLCPP_WARN(logger_, "new_scene_update_ enum: '%d'", new_scene_update_.load());
         if ((publish_update_types_ & new_scene_update_) || new_scene_update_ == UPDATE_SCENE)
         {
           if (new_scene_update_ == UPDATE_SCENE)
@@ -490,7 +491,9 @@ void PlanningSceneMonitor::scenePublishingThread()
                                                                               // attached bodies
           scene_->setAttachedBodyUpdateCallback(moveit::core::AttachedBodyCallback());
           scene_->setCollisionObjectUpdateCallback(collision_detection::World::ObserverCallbackFn());
+          RCLCPP_WARN(logger_, "pushDiffs(parent_scene_)");
           scene_->pushDiffs(parent_scene_);
+          RCLCPP_WARN(logger_, "------------");
           scene_->clearDiffs();
           scene_->setAttachedBodyUpdateCallback([this](moveit::core::AttachedBody* body, bool attached) {
             currentStateAttachedBodyUpdateCallback(body, attached);
@@ -519,9 +522,10 @@ void PlanningSceneMonitor::scenePublishingThread()
     }
     if (publish_msg)
     {
+      RCLCPP_WARN(logger_, "Publishing planning scene. Joint 1: %f", msg.robot_state.joint_state.position.front());
       planning_scene_publisher_->publish(msg);
       if (is_full)
-        RCLCPP_DEBUG(logger_, "Published full planning scene: '%s'", msg.name.c_str());
+        RCLCPP_WARN(logger_, "Published full planning scene: '%s'", msg.name.c_str());
       rate.sleep();
     }
   } while (publish_planning_scene_);
@@ -724,7 +728,8 @@ bool PlanningSceneMonitor::newPlanningSceneMessage(const moveit_msgs::msg::Plann
     std::scoped_lock prevent_shape_cache_updates(shape_handles_lock_);
 
     last_update_time_ = rclcpp::Clock().now();
-    last_robot_motion_time_ = scene.robot_state.joint_state.header.stamp;
+    if (scene.robot_state.joint_state.header.stamp.sec > 0)
+      last_robot_motion_time_ = scene.robot_state.joint_state.header.stamp;
     RCLCPP_DEBUG(logger_, "scene update %f robot stamp: %f", fmod(last_update_time_.seconds(), 10.),
                  fmod(last_robot_motion_time_.seconds(), 10.));
     old_scene_name = scene_->getName();
@@ -804,7 +809,7 @@ bool PlanningSceneMonitor::processCollisionObjectMsg(const moveit_msgs::msg::Col
       scene_->setObjectColor(color_msg.value().id, color_msg.value().color);
   }
   triggerSceneUpdateEvent(UPDATE_GEOMETRY);
-  RCLCPP_INFO(logger_, "Published update collision object");
+  RCLCPP_ERROR(logger_, "Published update collision object");
   return true;
 }
 
@@ -1123,7 +1128,7 @@ bool PlanningSceneMonitor::waitForCurrentRobotState(const rclcpp::Time& t, doubl
   while (last_robot_motion_time_ < t &&  // Wait until the state update actually reaches the scene.
          timeout > rclcpp::Duration(0, 0))
   {
-    RCLCPP_DEBUG(logger_, "last robot motion: %f ago", (t - last_robot_motion_time_).seconds());
+    RCLCPP_WARN(logger_, "last robot motion: %f ago", (t - last_robot_motion_time_).seconds());
     new_scene_update_condition_.wait_for(lock, std::chrono::nanoseconds(timeout.nanoseconds()));
     timeout = timeout - (node_->get_clock()->now() - start);  // compute remaining wait_time
   }
@@ -1135,8 +1140,8 @@ bool PlanningSceneMonitor::waitForCurrentRobotState(const rclcpp::Time& t, doubl
                 (t - last_robot_motion_time_).seconds());
   }
 
-  RCLCPP_DEBUG(logger_, "sync done: robot motion: %f scene update: %f", (t - last_robot_motion_time_).seconds(),
-               (t - last_update_time_).seconds());
+  RCLCPP_WARN(logger_, "sync done: robot motion: %f scene update: %f", (t - last_robot_motion_time_).seconds(),
+              (t - last_update_time_).seconds());
   return success;
 }
 
@@ -1172,7 +1177,8 @@ void PlanningSceneMonitor::startSceneMonitor(const std::string& scene_topic)
 {
   stopSceneMonitor();
 
-  RCLCPP_INFO(logger_, "Starting planning scene monitor");
+  RCLCPP_INFO(logger_, "Starting planning scene monitor with an update frequency of %.1f Hz",
+              publish_planning_scene_frequency_);
   // listen for planning scene updates; these messages include transforms, so no need for filters
   if (!scene_topic.empty())
   {
@@ -1427,7 +1433,7 @@ void PlanningSceneMonitor::stateUpdateTimerCallback()
         last_robot_state_update_wall_time_ = std::chrono::system_clock::now();
         auto sec = std::chrono::duration<double>(last_robot_state_update_wall_time_.time_since_epoch()).count();
         update = true;
-        RCLCPP_DEBUG(logger_, "performPendingStateUpdate: %f", fmod(sec, 10));
+        RCLCPP_WARN(logger_, "performPendingStateUpdate: %f", fmod(sec, 10));
       }
     }
 
@@ -1435,7 +1441,7 @@ void PlanningSceneMonitor::stateUpdateTimerCallback()
     if (update)
     {
       updateSceneWithCurrentState();
-      RCLCPP_DEBUG(logger_, "performPendingStateUpdate done");
+      RCLCPP_WARN(logger_, "performPendingStateUpdate done");
     }
   }
 }
@@ -1514,7 +1520,7 @@ void PlanningSceneMonitor::updateSceneWithCurrentState()
     {
       std::unique_lock<std::shared_mutex> ulock(scene_update_mutex_);
       last_update_time_ = last_robot_motion_time_ = current_state_monitor_->getCurrentStateTime();
-      RCLCPP_DEBUG(logger_, "robot state update %f", fmod(last_robot_motion_time_.seconds(), 10.));
+      RCLCPP_INFO(logger_, "robot state update %f", fmod(last_robot_motion_time_.seconds(), 10.));
       current_state_monitor_->setToCurrentState(scene_->getCurrentStateNonConst());
       scene_->getCurrentStateNonConst().update();  // compute all transforms
     }

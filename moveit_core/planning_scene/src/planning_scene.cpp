@@ -357,6 +357,10 @@ void PlanningScene::pushDiffs(const PlanningScenePtr& scene)
         scene->setObjectColor(attached_obj->getName(), getObjectColor(attached_obj->getName()));
     }
   }
+  else
+  {
+    RCLCPP_ERROR(getLogger(), "pushDiffs() scene DOES NOT include a robot state");
+  }
 
   if (acm_.has_value())
     scene->getAllowedCollisionMatrixNonConst() = acm_.value();
@@ -625,6 +629,8 @@ moveit::core::RobotState& PlanningScene::getCurrentStateNonConst()
     robot_state_.value().setAttachedBodyUpdateCallback(current_state_attached_body_callback_);
   }
   robot_state_.value().update();
+  RCLCPP_INFO(getLogger(), "getCurrentStateNonConst(), joint 1: %f", robot_state_.value().getVariablePosition(0));
+  // RCLCPP_INFO(getLogger(), "getCurrentStateNonConst, joint 1: %f", robot_state_.value().getJointPositions("panda_joint1"));
   return robot_state_.value();
 }
 
@@ -952,6 +958,9 @@ void PlanningScene::getPlanningSceneMsg(moveit_msgs::msg::PlanningScene& scene_m
   getTransforms().copyTransforms(scene_msg.fixed_frame_transforms);
 
   moveit::core::robotStateToRobotStateMsg(getCurrentState(), scene_msg.robot_state);
+  // RCLCPP_WARN(getLogger(), "getPlanningSceneMsg() robot_state time stamp: %d", scene_msg.robot_state.joint_state.header.stamp.sec);
+  RCLCPP_WARN(getLogger(), "getPlanningSceneMsg() Joint 1 state: %f",
+              scene_msg.robot_state.joint_state.position.front());
   getAllowedCollisionMatrix().getMessage(scene_msg.allowed_collision_matrix);
   getCollisionEnv()->getPadding(scene_msg.link_padding);
   getCollisionEnv()->getScale(scene_msg.link_scale);
@@ -1225,8 +1234,10 @@ void PlanningScene::setCurrentState(const moveit_msgs::msg::RobotState& state)
     }
     moveit::core::robotStateMsgToRobotState(getTransforms(), state_no_attached, robot_state_.value());
   }
-  else
+  else if (state_no_attached.joint_state.name.size() > 0)
+  {
     moveit::core::robotStateMsgToRobotState(*scene_transforms_.value(), state_no_attached, robot_state_.value());
+  }
 
   for (std::size_t i = 0; i < state.attached_collision_objects.size(); ++i)
   {
@@ -1310,7 +1321,7 @@ bool PlanningScene::setPlanningSceneDiffMsg(const moveit_msgs::msg::PlanningScen
 {
   bool result = true;
 
-  RCLCPP_DEBUG(getLogger(), "Adding planning scene diff");
+  RCLCPP_WARN(getLogger(), "Adding planning scene diff");
   if (!scene_msg.name.empty())
     name_ = scene_msg.name;
 
@@ -1362,7 +1373,7 @@ bool PlanningScene::setPlanningSceneDiffMsg(const moveit_msgs::msg::PlanningScen
 bool PlanningScene::setPlanningSceneMsg(const moveit_msgs::msg::PlanningScene& scene_msg)
 {
   assert(scene_msg.is_diff == false);
-  RCLCPP_DEBUG(getLogger(), "Setting new planning scene: '%s'", scene_msg.name.c_str());
+  RCLCPP_WARN(getLogger(), "Setting new planning scene: '%s'", scene_msg.name.c_str());
   name_ = scene_msg.name;
 
   if (!scene_msg.robot_model_name.empty() && scene_msg.robot_model_name != getRobotModel()->getName())
@@ -1548,6 +1559,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
     robot_state_.value().setAttachedBodyUpdateCallback(current_state_attached_body_callback_);
   }
   robot_state_.value().update();
+  RCLCPP_WARN(getLogger(), "Updated robot_state_ has joint 1: %f", robot_state_.value().getVariablePosition(0));
 
   // The ADD/REMOVE operations follow this order:
   // STEP 1: Get info about the object from either the message or the world/RobotState

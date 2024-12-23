@@ -1560,6 +1560,7 @@ bool TrajectoryExecutionManager::executePart(std::size_t part_index)
 
 bool TrajectoryExecutionManager::waitForRobotToStop(const TrajectoryExecutionContext& context, double wait_time)
 {
+  RCLCPP_WARN(logger_, "Waiting for trajectory completion with allowed_start_tolerance: %.3f", allowed_start_tolerance_);
   // skip waiting for convergence?
   if (allowed_start_tolerance_ == 0 || !wait_for_trajectory_completion_)
   {
