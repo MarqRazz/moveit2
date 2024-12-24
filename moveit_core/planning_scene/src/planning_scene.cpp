@@ -629,8 +629,7 @@ moveit::core::RobotState& PlanningScene::getCurrentStateNonConst()
     robot_state_.value().setAttachedBodyUpdateCallback(current_state_attached_body_callback_);
   }
   robot_state_.value().update();
-  RCLCPP_INFO(getLogger(), "getCurrentStateNonConst(), joint 1: %f", robot_state_.value().getVariablePosition(0));
-  // RCLCPP_INFO(getLogger(), "getCurrentStateNonConst, joint 1: %f", robot_state_.value().getJointPositions("panda_joint1"));
+  RCLCPP_INFO(getLogger(), "getCurrentStateNonConst, joint 1: %f", *robot_state_.value().getJointPositions("panda_joint1"));
   return robot_state_.value();
 }
 
@@ -1559,7 +1558,7 @@ bool PlanningScene::processAttachedCollisionObjectMsg(const moveit_msgs::msg::At
     robot_state_.value().setAttachedBodyUpdateCallback(current_state_attached_body_callback_);
   }
   robot_state_.value().update();
-  RCLCPP_WARN(getLogger(), "Updated robot_state_ has joint 1: %f", robot_state_.value().getVariablePosition(0));
+  RCLCPP_WARN(getLogger(), "Updated robot_state_ has joint 1: %f", *robot_state_.value().getJointPositions("panda_joint1"));
 
   // The ADD/REMOVE operations follow this order:
   // STEP 1: Get info about the object from either the message or the world/RobotState
